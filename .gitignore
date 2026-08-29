@@ -19,6 +19,7 @@
 .claude/
 .codex/
 .grok/
+AGENTS.md
 
 # Python
 .DS_Store

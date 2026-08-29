@@ -112,7 +112,7 @@ class RoboNexBalancingSceneCfg(InteractiveSceneCfg):
     imu = ImuCfg(
         prim_path="{ENV_REGEX_NS}/Robot/base_link",
         offset=ImuCfg.OffsetCfg(
-            pos=(0.0, 0.0, 0.0),
+            pos=(0.060, 0.0, 0.035),
             rot=(1.0, 0.0, 0.0, 0.0),
         ),
         update_period=0.0,
@@ -125,7 +125,7 @@ class RoboNexBalancingSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Robot/.*_foot",
         history_length=3,
         track_air_time=False,
-        debug_vis=True,
+        debug_vis=False,
     )
 
 
