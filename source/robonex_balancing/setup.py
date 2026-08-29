@@ -19,6 +19,7 @@ EXTENSION_TOML_DATA = toml.load(os.path.join(EXTENSION_PATH, "config", "extensio
 INSTALL_REQUIRES = [
     # NOTE: Add dependencies
     "psutil",
+    "robonex-common @ git+https://github.com/Humanoid-Project/robonex-common.git@v0.1.0",
 ]
 
 # Installation operation
@@ -32,7 +33,7 @@ setup(
     description=EXTENSION_TOML_DATA["package"]["description"],
     keywords=EXTENSION_TOML_DATA["package"]["keywords"],
     install_requires=INSTALL_REQUIRES,
-    license="Apache-2.0",
+    license="BSD-3-Clause",
     include_package_data=True,
     python_requires=">=3.10",
     classifiers=[

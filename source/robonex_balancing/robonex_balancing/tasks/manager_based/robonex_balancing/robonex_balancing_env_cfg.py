@@ -19,21 +19,14 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import GaussianNoiseCfg, NoiseModelWithAdditiveBiasCfg
 
 from . import mdp
-
-
-ROBOT_USD = (
-    "/home/polygon/humanoid_project/robonex_description/isaac/"
-    "closed_loop_mesh/robonex_closed_loop_mesh.usd"
+from .robot_contract import (
+    ACTION_CLIPS,
+    ACTION_OFFSETS,
+    ACTION_SCALES,
+    ACTUATOR_PARAMETERS,
+    LEG_JOINTS,
+    ROBOT_USD,
 )
-
-LEG_JOINTS = [
-    "l_hip_yaw_joint", "l_hip_pitch_joint", "l_hip_roll_joint",
-    "l_knee_pitch_joint",
-    "l_ankle_upper_joint", "l_ankle_lower_joint",
-    "r_hip_yaw_joint", "r_hip_pitch_joint", "r_hip_roll_joint",
-    "r_knee_pitch_joint",
-    "r_ankle_upper_joint", "r_ankle_lower_joint",
-]
 
 @configclass
 class RoboNexBalancingSceneCfg(InteractiveSceneCfg):
@@ -64,7 +57,7 @@ class RoboNexBalancingSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = ArticulationCfg(
         prim_path="{ENV_REGEX_NS}/Robot",
         spawn=sim_utils.UsdFileCfg(
-            usd_path=ROBOT_USD,
+            usd_path=str(ROBOT_USD),
             activate_contact_sensors=True,
             articulation_props=sim_utils.schemas.ArticulationRootPropertiesCfg(
                 solver_position_iteration_count=64,
@@ -102,10 +95,7 @@ class RoboNexBalancingSceneCfg(InteractiveSceneCfg):
                     ".*_ankle_upper_joint",
                     ".*_ankle_lower_joint",
                 ],
-                stiffness=40.0,
-                damping=2.0,
-                armature=0.0042,
-                friction=0.1,
+                **ACTUATOR_PARAMETERS["rs02"],
             ),
             "rs03": ImplicitActuatorCfg(
                 joint_names_expr=[
@@ -113,10 +103,7 @@ class RoboNexBalancingSceneCfg(InteractiveSceneCfg):
                     ".*_hip_roll_joint",
                     ".*_knee_pitch_joint",
                 ],
-                stiffness=40.0,
-                damping=2.0,
-                armature=0.02,
-                friction=0.2,
+                **ACTUATOR_PARAMETERS["rs03"],
             ),
         },
     )
@@ -149,48 +136,9 @@ class ActionsCfg:
     joint_pos = mdp.JointPositionActionCfg(
         asset_name="robot",
         joint_names=LEG_JOINTS,
-        offset={
-            "l_hip_yaw_joint": 0.0,
-            "r_hip_yaw_joint": 0.0,
-            "l_hip_pitch_joint": 0.0,
-            "r_hip_pitch_joint": 0.0,
-            "l_hip_roll_joint": -0.479966,
-            "r_hip_roll_joint": 0.479966,
-            "l_knee_pitch_joint": -0.3926995,
-            "r_knee_pitch_joint": 0.3926995,
-            "l_ankle_upper_joint": -0.0872665,
-            "r_ankle_upper_joint": 0.0872665,
-            "l_ankle_lower_joint": 0.0872665,
-            "r_ankle_lower_joint": -0.0872665,
-        },
-        scale={
-            "l_hip_yaw_joint": 0.688132,
-            "r_hip_yaw_joint": 0.688132,
-            "l_hip_pitch_joint": 0.862665,
-            "r_hip_pitch_joint": 0.862665,
-            "l_hip_roll_joint": 0.557232,
-            "r_hip_roll_joint": 0.557232,
-            "l_knee_pitch_joint": 0.4699655,
-            "r_knee_pitch_joint": 0.4699655,
-            "l_ankle_upper_joint": 0.5135985,
-            "r_ankle_upper_joint": 0.5135985,
-            "l_ankle_lower_joint": 0.5135985,
-            "r_ankle_lower_joint": 0.5135985,
-        },
-        clip={
-            "l_hip_yaw_joint": (-0.688132, 0.688132),
-            "l_hip_pitch_joint": (-0.862665, 0.862665),
-            "l_hip_roll_joint": (-1.037198, 0.077266),
-            "l_knee_pitch_joint": (-0.862665, 0.077266),
-            "l_ankle_upper_joint": (-0.600865, 0.426332),
-            "l_ankle_lower_joint": (-0.426332, 0.600865),
-            "r_hip_yaw_joint": (-0.688132, 0.688132),
-            "r_hip_pitch_joint": (-0.862665, 0.862665),
-            "r_hip_roll_joint": (-0.077266, 1.037198),
-            "r_knee_pitch_joint": (-0.077266, 0.862665),
-            "r_ankle_upper_joint": (-0.426332, 0.600865),
-            "r_ankle_lower_joint": (-0.600865, 0.426332),
-        },
+        offset=ACTION_OFFSETS,
+        scale=ACTION_SCALES,
+        clip=ACTION_CLIPS,
         use_default_offset=False,
     )
 

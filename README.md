@@ -1,6 +1,30 @@
-# Template for Isaac Lab Projects
+# RoboNex Balancing
 
-## Overview
+## Setup
+
+```bash
+cd ~/humanoid_project
+git clone https://github.com/Humanoid-Project/robonex-common.git
+git clone https://github.com/Humanoid-Project/robonex_description.git
+git clone https://github.com/Humanoid-Project/robonex-balancing.git robonex_balancing
+conda activate isaacsim
+python -m pip install -e ./robonex-common
+python -m pip install -e ./robonex_balancing/source/robonex_balancing
+```
+
+세 저장소를 같은 상위 폴더에 두면 모델 경로가 자동으로 해석됩니다. 다른 배치에서는 `ROBONEX_DESCRIPTION_ROOT=/absolute/path/to/robonex_description`을 설정합니다.
+
+## Policy manifest
+
+배포할 ONNX 정책에는 action 순서, offset, scale, clip과 학습·모델·공통 저장소 커밋을 담은 manifest를 함께 생성합니다.
+
+```bash
+conda activate isaacsim
+cd ~/humanoid_project/robonex_balancing
+python scripts/export_policy_manifest.py /path/to/policy.onnx
+```
+
+## Isaac Lab project
 
 This project/repository serves as a template for building projects or extensions based on Isaac Lab.
 It allows you to develop in an isolated environment, outside of the core Isaac Lab repository.
