@@ -6,12 +6,12 @@ cd ~/humanoid_project
 git clone https://github.com/Humanoid-Project/robonex-common.git
 git clone https://github.com/Humanoid-Project/robonex_description.git
 git clone https://github.com/Humanoid-Project/robonex-balancing.git robonex_balancing
-conda activate isaacsim
+source ./robonex-common/setup/setup_isaacsim.sh
 python -m pip install -e ./robonex-common
 python -m pip install -e ./robonex_balancing/source/robonex_balancing
 ```
 
-Uses `conda` (Isaac Sim), not the shared `venv` script the other repos use — see [`robonex-common/setup/SETUP.md`](https://github.com/Humanoid-Project/robonex-common/blob/main/setup/SETUP.md) for why.
+Uses `conda` (Isaac Sim), not the shared `venv` script the other repos use — see [`robonex-common/setup/SETUP.md`](https://github.com/Humanoid-Project/robonex-common/blob/main/setup/SETUP.md).
 
 | Variable | Required | Default | Description |
 | --- | :---: | --- | --- |
