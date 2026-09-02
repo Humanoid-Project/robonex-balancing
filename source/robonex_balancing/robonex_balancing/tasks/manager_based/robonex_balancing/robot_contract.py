@@ -5,6 +5,8 @@ from robonex_common.joints import ACTUATED_JOINTS
 from robonex_common.limits import action_normalization
 from robonex_common.motors import MOTOR_CONTROL_KD, MOTOR_CONTROL_KP, MOTOR_PHYSICS
 
+DESCRIPTION_REPO_NAMES = ("robonex-description", "robonex_description")
+
 
 def resolve_description_root():
     configured = os.environ.get("ROBONEX_DESCRIPTION_ROOT")
@@ -16,11 +18,12 @@ def resolve_description_root():
     anchors = (Path.cwd().resolve(), Path(__file__).resolve())
     for anchor in anchors:
         for parent in (anchor, *anchor.parents):
-            candidate = parent / "robonex_description"
-            if candidate.is_dir():
-                return candidate
+            for name in DESCRIPTION_REPO_NAMES:
+                candidate = parent / name
+                if candidate.is_dir():
+                    return candidate
     raise FileNotFoundError(
-        "robonex_description checkout not found; clone it beside robonex_balancing or set ROBONEX_DESCRIPTION_ROOT"
+        "robonex-description checkout not found; clone it beside robonex-balancing or set ROBONEX_DESCRIPTION_ROOT"
     )
 
 

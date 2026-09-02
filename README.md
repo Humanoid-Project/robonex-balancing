@@ -4,25 +4,25 @@
 ```bash
 cd ~/humanoid_project
 git clone https://github.com/Humanoid-Project/robonex-common.git
-git clone https://github.com/Humanoid-Project/robonex_description.git
-git clone https://github.com/Humanoid-Project/robonex-balancing.git robonex_balancing
+git clone https://github.com/Humanoid-Project/robonex-description.git
+git clone https://github.com/Humanoid-Project/robonex-balancing.git
 source ./robonex-common/setup/setup_isaacsim.sh
 python -m pip install -e ./robonex-common
-python -m pip install -e ./robonex_balancing/source/robonex_balancing
+python -m pip install -e ./robonex-balancing/source/robonex_balancing
 ```
 
 Uses `conda` (Isaac Sim), not the shared `venv` script the other repos use — see [`robonex-common/setup/SETUP.md`](https://github.com/Humanoid-Project/robonex-common/blob/main/setup/SETUP.md).
 
 | Variable | Required | Default | Description |
 | --- | :---: | --- | --- |
-| `ROBONEX_DESCRIPTION_ROOT` | No | Sibling `robonex_description` | Description checkout |
+| `ROBONEX_DESCRIPTION_ROOT` | No | Sibling `robonex-description` | Description checkout |
 
 <br>
 
 ## Structure
 
 ```text
-robonex_balancing/
+robonex-balancing/
 ├── README.md
 ├── scripts/
 │   ├── list_envs.py
@@ -38,7 +38,7 @@ robonex_balancing/
 
 | Task | USD |
 | --- | --- |
-| `Template-Robonex-Balancing-ClosedLoop-v0` | `robonex_description/isaac/closed_loop_mesh/robonex_closed_loop_mesh.usd` |
+| `RoboNex-Balancing-v0` | `robonex-description/isaac/closed_loop_mesh/robonex_closed_loop_mesh.usd` |
 
 <br>
 
@@ -61,11 +61,11 @@ robonex_balancing/
 
 ```bash
 # Example
-cd ~/humanoid_project/robonex_balancing
+cd ~/humanoid_project/robonex-balancing
 conda activate isaacsim
 
 python scripts/rsl_rl/train.py \
-  --task Template-Robonex-Balancing-ClosedLoop-v0 \
+  --task RoboNex-Balancing-v0 \
   --num_envs 512
 ```
 
@@ -88,7 +88,7 @@ python scripts/rsl_rl/train.py \
 ```bash
 # Example
 python scripts/rsl_rl/play.py \
-  --task Template-Robonex-Balancing-ClosedLoop-v0 \
+  --task RoboNex-Balancing-v0 \
   --num_envs 1
 ```
 
@@ -117,7 +117,7 @@ python scripts/list_envs.py
 ```bash
 # Example
 python scripts/zero_agent.py \
-  --task Template-Robonex-Balancing-ClosedLoop-v0 \
+  --task RoboNex-Balancing-v0 \
   --num_envs 1
 ```
 
@@ -131,7 +131,7 @@ python scripts/zero_agent.py \
 | --- | :---: | --- | --- |
 | `policy` | Yes | - | ONNX policy path |
 | `--output` | No | `<policy_dir>/policy_manifest.json` | Manifest path |
-| `--description-root` | No | Sibling checkout | `robonex_description` path |
+| `--description-root` | No | Sibling checkout | `robonex-description` path |
 | `--common-root` | No | Sibling checkout | `robonex-common` path |
 | `--description-model` | No | `mujoco/scene.xml` | Model path stored in the manifest |
 

@@ -12,7 +12,7 @@ from . import agents
 ##
 
 gym.register(
-    id="Template-Robonex-Balancing-ClosedLoop-v0",
+    id="RoboNex-Balancing-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

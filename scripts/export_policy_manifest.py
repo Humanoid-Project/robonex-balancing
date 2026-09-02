@@ -8,18 +8,23 @@ from robonex_common.limits import action_normalization
 from robonex_common.policy import PolicyContract, sha256_file
 
 
+DESCRIPTION_REPO_NAMES = ("robonex-description", "robonex_description")
+
+
 def find_repo(name, configured=None):
     if configured:
         root = Path(configured).expanduser().resolve()
         if root.is_dir():
             return root
         raise FileNotFoundError(root)
+    names = (name,) if isinstance(name, str) else tuple(name)
     for anchor in (Path.cwd().resolve(), Path(__file__).resolve()):
         for parent in (anchor, *anchor.parents):
-            candidate = parent / name
-            if candidate.is_dir():
-                return candidate
-    raise FileNotFoundError(name)
+            for candidate_name in names:
+                candidate = parent / candidate_name
+                if candidate.is_dir():
+                    return candidate
+    raise FileNotFoundError(names[0])
 
 
 def git_commit(path):
@@ -45,7 +50,7 @@ def main():
         raise FileNotFoundError(policy)
     output = args.output.expanduser().resolve() if args.output else policy.with_name("policy_manifest.json")
     description_root = find_repo(
-        "robonex_description",
+        DESCRIPTION_REPO_NAMES,
         args.description_root or os.environ.get("ROBONEX_DESCRIPTION_ROOT"),
     )
     common_root = find_repo("robonex-common", args.common_root or os.environ.get("ROBONEX_COMMON_ROOT"))
@@ -54,7 +59,7 @@ def main():
 
     contract = PolicyContract(
         schema_version=1,
-        task="Template-Robonex-Balancing-ClosedLoop-v0",
+        task="RoboNex-Balancing-v0",
         policy_file=os.path.relpath(policy, output.parent),
         policy_sha256=sha256_file(policy),
         description_model=args.description_model,
