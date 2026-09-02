@@ -289,7 +289,7 @@ class RewardsCfg:
     alive = RewTerm(func=mdp.is_alive, weight=1.0)
     terminating = RewTerm(func=mdp.is_terminated, weight=-5.0)
 
-    flat_orientation = RewTerm(func=mdp.flat_orientation_l2_bounded, weight=-5.0)
+    flat_orientation = RewTerm(func=mdp.flat_orientation_l2_bounded, weight=-15.0)
     base_height = RewTerm(
             func=mdp.base_height_l2_bounded,
             weight=-20.0,
@@ -315,7 +315,10 @@ class RewardsCfg:
             "threshold": 1.0,
         },
     )
-    action_rate = RewTerm(func=mdp.action_rate_l2_bounded, weight=-0.015)
+    action_rate = RewTerm(
+        func=mdp.action_rate_l2_bounded,
+        weight=-0.015
+    )
 
     joint_deviation = RewTerm(
         func=mdp.joint_deviation_l1_bounded,
@@ -346,12 +349,6 @@ class TerminationsCfg:
         func=mdp.root_height_below_minimum,
         params={"minimum_height": 0.6},
     )
-    bad_root_pos = DoneTerm(func=mdp.unstable_root_pos, params={"limit": 10.0})
-    bad_root_quat = DoneTerm(func=mdp.unstable_root_quat, params={"limit": 2.0})
-    bad_root_lin_vel = DoneTerm(func=mdp.unstable_root_lin_vel, params={"limit": 50.0})
-    bad_root_ang_vel = DoneTerm(func=mdp.unstable_root_ang_vel, params={"limit": 100.0})
-    bad_body_pos = DoneTerm(func=mdp.unstable_body_pos, params={"limit": 5.0})
-    bad_joint_pos = DoneTerm(func=mdp.unstable_joint_pos, params={"limit": 10.0})
     bad_joint_vel = DoneTerm(func=mdp.unstable_joint_vel, params={"limit": 100.0})
 
 

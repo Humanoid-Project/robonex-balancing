@@ -69,8 +69,9 @@ def lin_vel_z_l2_bounded(
     return _bounded_square(asset.data.root_lin_vel_b[:, 2], 10.0)
 
 
-def action_rate_l2_bounded(env: ManagerBasedRLEnv) -> torch.Tensor:
-    action_delta = env.action_manager.action - env.action_manager.prev_action
+def action_rate_l2_bounded(env: ManagerBasedRLEnv, action_name: str = "joint_pos") -> torch.Tensor:
+    scale = env.action_manager.get_term(action_name)._scale
+    action_delta = (env.action_manager.action - env.action_manager.prev_action) * scale
     return torch.sum(_bounded_square(action_delta, 6.0), dim=1)
 
 
@@ -120,53 +121,11 @@ def _body_pos_b(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tens
     return body_pos_b.reshape(env.num_envs, num_bodies, 3)
 
 def feet_width_l2(env: ManagerBasedRLEnv, target_width: float, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Penalize feet width deviation from target width."""
+    """Penalize feet width deviation from target width and fore-aft foot offset."""
     feet_pos_b = _body_pos_b(env, asset_cfg)
     foot_width = torch.abs(feet_pos_b[:, 0, 1] - feet_pos_b[:, 1, 1])
-    return _bounded_square(foot_width - target_width, 2.0)
-
-
-def unstable_root_pos(
-    env: ManagerBasedRLEnv, limit: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return _outside_limit(asset.data.root_pos_w - env.scene.env_origins, limit)
-
-
-def unstable_root_quat(
-    env: ManagerBasedRLEnv, limit: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return _outside_limit(asset.data.root_quat_w, limit)
-
-
-def unstable_root_lin_vel(
-    env: ManagerBasedRLEnv, limit: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return _outside_limit(asset.data.root_lin_vel_w, limit)
-
-
-def unstable_root_ang_vel(
-    env: ManagerBasedRLEnv, limit: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return _outside_limit(asset.data.root_ang_vel_w, limit)
-
-
-def unstable_body_pos(
-    env: ManagerBasedRLEnv, limit: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    body_pos = asset.data.body_pos_w - asset.data.root_pos_w.unsqueeze(1)
-    return _outside_limit(body_pos, limit)
-
-
-def unstable_joint_pos(
-    env: ManagerBasedRLEnv, limit: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return _outside_limit(asset.data.joint_pos[:, asset_cfg.joint_ids], limit)
+    foot_offset_x = feet_pos_b[:, 0, 0] - feet_pos_b[:, 1, 0]
+    return _bounded_square(foot_width - target_width, 2.0) + _bounded_square(foot_offset_x, 2.0)
 
 
 def unstable_joint_vel(
