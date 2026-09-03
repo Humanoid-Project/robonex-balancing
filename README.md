@@ -2,16 +2,17 @@
 
 ## Setup
 ```bash
+# Example
 cd ~/humanoid_project
-git clone https://github.com/Humanoid-Project/robonex-common.git
-git clone https://github.com/Humanoid-Project/robonex-description.git
 git clone https://github.com/Humanoid-Project/robonex-balancing.git
+git clone https://github.com/Humanoid-Project/robonex-description.git
+git clone https://github.com/Humanoid-Project/robonex-common.git
 source ./robonex-common/setup/setup_isaacsim.sh
-python -m pip install -e ./robonex-common
 python -m pip install -e ./robonex-balancing/source/robonex_balancing
 ```
 
-Uses `conda` (Isaac Sim), not the shared `venv` script the other repos use — see [`robonex-common/setup/SETUP.md`](https://github.com/Humanoid-Project/robonex-common/blob/main/setup/SETUP.md).
+Runs on the `isaacsim` conda env, not a `.venv`. `robonex-common` is pinned in
+`source/robonex_balancing/setup.py` — see [`robonex-common/setup/SETUP.md`](https://github.com/Humanoid-Project/robonex-common/blob/main/setup/SETUP.md).
 
 | Variable | Required | Default | Description |
 | --- | :---: | --- | --- |
