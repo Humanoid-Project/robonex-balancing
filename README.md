@@ -1,5 +1,7 @@
 # RoboNex Balancing
 
+Full execution-argument inventory: [scripts/README.md](scripts/README.md), including inherited launcher options and known ineffective flags.
+
 ## Setup
 ```bash
 # Example
@@ -56,7 +58,7 @@ robonex-balancing/
 | `--resume` | No | Off | Resume from a checkpoint |
 | `--load_run` | No | - | Run folder to resume |
 | `--checkpoint` | No | - | Checkpoint file to resume |
-| `--experiment_name` | No | - | Log folder name |
+| `--experiment_name` | No | - | Parsed but currently not applied; the task config still determines the log folder name |
 | `--run_name` | No | - | Run-name suffix |
 | `--logger` | No | - | `wandb`, `tensorboard`, or `neptune` |
 
@@ -134,7 +136,7 @@ python scripts/zero_agent.py \
 | `--output` | No | `<policy_dir>/policy_manifest.json` | Manifest path |
 | `--description-root` | No | Sibling checkout | `robonex-description` path |
 | `--common-root` | No | Sibling checkout | `robonex-common` path |
-| `--description-model` | No | `mujoco/scene.xml` | Model path stored in the manifest |
+| `--description-model` | No | `mujoco/basic/scene.xml` | Model path stored in the manifest |
 
 ```bash
 # Example
