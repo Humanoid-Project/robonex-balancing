@@ -1,135 +1,60 @@
-# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 import torch
 
-from isaaclab.assets import Articulation
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import wrap_to_pi, quat_apply_inverse
-
-if TYPE_CHECKING:
-    from isaaclab.envs import ManagerBasedRLEnv
-
-
-def _bounded_square(value: torch.Tensor, max_abs: float) -> torch.Tensor:
-    value = torch.nan_to_num(value, nan=max_abs, posinf=max_abs, neginf=-max_abs)
-    return torch.square(torch.clamp(value, min=-max_abs, max=max_abs))
+from ..robot_contract import ROBOT_WEIGHT_N
+from .balance_metrics import (
+    balance_metrics,
+    contact_grip_reward,
+    gaussian_axis_mean,
+    gaussian_half_error,
+    height_error,
+)
 
 
-def _outside_limit(value: torch.Tensor, limit: float) -> torch.Tensor:
-    value = value.reshape(value.shape[0], -1)
-    finite = torch.isfinite(value)
-    bounded_value = torch.where(finite, value, torch.zeros_like(value))
-    return torch.any(~finite, dim=1) | torch.any(torch.abs(bounded_value) > limit, dim=1)
+def _live(env, values, reward):
+    return torch.where(values["valid"] & ~env.termination_manager.terminated, reward, 0.0)
 
 
-def joint_pos_target_l2(env: ManagerBasedRLEnv, target: float, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Penalize joint position deviation from a target value."""
-    asset: Articulation = env.scene[asset_cfg.name]
-    joint_pos = wrap_to_pi(asset.data.joint_pos[:, asset_cfg.joint_ids])
-    return torch.sum(torch.square(joint_pos - target), dim=1)
-
-def ang_vel_z_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
-    """Penalize z-axis base angular velocity (yaw rotation)."""
-    asset: Articulation = env.scene[asset_cfg.name]
-    return torch.square(asset.data.root_ang_vel_b[:, 2])
-
-def base_lin_vel_xy_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
-    """Penalize x/y base linear velocity."""
-    asset: Articulation = env.scene[asset_cfg.name]
-    return torch.sum(_bounded_square(asset.data.root_lin_vel_b[:, :2], 10.0), dim=1)
+def balance_tracking(env, metric, half_error):
+    values = balance_metrics(env).values
+    return _live(env, values, gaussian_half_error(values[metric], half_error))
 
 
-def flat_orientation_l2_bounded(
-    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return torch.sum(_bounded_square(asset.data.projected_gravity_b[:, :2], 1.0), dim=1)
+def balance_axis_tracking(env, metric, half_error):
+    values = balance_metrics(env).values
+    return _live(env, values, gaussian_axis_mean(values[metric], half_error))
 
 
-def base_height_l2_bounded(
-    env: ManagerBasedRLEnv,
-    target_height: float,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return _bounded_square(asset.data.root_pos_w[:, 2] - target_height, 2.0)
+def balance_height(env, target_height, lower_tolerance, half_error):
+    values = balance_metrics(env).values
+    error = height_error(values["height"], target_height, lower_tolerance).unsqueeze(-1)
+    return _live(env, values, gaussian_half_error(error, (half_error,)))
 
 
-def lin_vel_z_l2_bounded(
-    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return _bounded_square(asset.data.root_lin_vel_b[:, 2], 10.0)
+def balance_symmetry(env, half_error):
+    values = balance_metrics(env).values
+    scale = torch.full_like(values["symmetry_error"][0], half_error)
+    return _live(env, values, gaussian_axis_mean(values["symmetry_error"], scale))
 
 
-def action_rate_l2_bounded(env: ManagerBasedRLEnv, action_name: str = "joint_pos") -> torch.Tensor:
-    scale = env.action_manager.get_term(action_name)._scale
-    action_delta = (env.action_manager.action - env.action_manager.prev_action) * scale
-    return torch.sum(_bounded_square(action_delta, 6.0), dim=1)
+def balance_effort(env, metric, reference):
+    values = balance_metrics(env).values
+    scale = torch.full_like(values[metric][0], reference)
+    return _live(env, values, gaussian_axis_mean(values[metric], scale))
 
 
-def joint_deviation_l1_bounded(
-    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
-    angle = torch.nan_to_num(angle, nan=2.0, posinf=2.0, neginf=-2.0)
-    return torch.sum(torch.clamp(torch.abs(angle), max=2.0), dim=1)
+def balance_joint_limit(env, half_error):
+    values = balance_metrics(env).values
+    return _live(env, values, gaussian_half_error(values["joint_limit_excess"], (half_error,)))
 
-def foot_slip_l2(
-    env: ManagerBasedRLEnv,
-    sensor_cfg: SceneEntityCfg,
-    threshold: float,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> torch.Tensor:
-    contact_sensor = env.scene.sensors[sensor_cfg.name]
-    contact_forces = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :]
-    contact_forces = torch.nan_to_num(
-        contact_forces,
-        nan=threshold + 1.0,
-        posinf=threshold + 1.0,
-        neginf=-(threshold + 1.0),
+
+def balance_foot_grip(env, reference_velocity, contact_weight_fraction):
+    values = balance_metrics(env).values
+    grip = contact_grip_reward(
+        values["sole_velocity_xy"], values["contact_force_z"],
+        ROBOT_WEIGHT_N * contact_weight_fraction, reference_velocity,
     )
-    contacts = torch.norm(contact_forces, dim=-1).amax(dim=1) > threshold
-    asset: Articulation = env.scene[asset_cfg.name]
-    foot_vel_xy = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2]
-    return torch.sum(torch.sum(_bounded_square(foot_vel_xy, 10.0), dim=-1) * contacts, dim=1)
+    return _live(env, values, grip)
 
 
-
-def _body_pos_b(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Return selected body positions in robot base frame."""
-    asset: Articulation = env.scene[asset_cfg.name]
-
-    body_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids, :]
-    rel_pos_w = body_pos_w - asset.data.root_pos_w.unsqueeze(1)
-
-    num_bodies = body_pos_w.shape[1]
-    root_quat_w = asset.data.root_quat_w.unsqueeze(1).expand(-1, num_bodies, -1)
-
-    body_pos_b = quat_apply_inverse(
-        root_quat_w.reshape(-1, 4),
-        rel_pos_w.reshape(-1, 3),
-    )
-    return body_pos_b.reshape(env.num_envs, num_bodies, 3)
-
-def feet_width_l2(env: ManagerBasedRLEnv, target_width: float, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Penalize feet width deviation from target width and fore-aft foot offset."""
-    feet_pos_b = _body_pos_b(env, asset_cfg)
-    foot_width = torch.abs(feet_pos_b[:, 0, 1] - feet_pos_b[:, 1, 1])
-    foot_offset_x = feet_pos_b[:, 0, 0] - feet_pos_b[:, 1, 0]
-    return _bounded_square(foot_width - target_width, 2.0) + _bounded_square(foot_offset_x, 2.0)
-
-
-def unstable_joint_vel(
-    env: ManagerBasedRLEnv, limit: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    return _outside_limit(asset.data.joint_vel[:, asset_cfg.joint_ids], limit)
+def balance_termination_cost(env):
+    return env.termination_manager.terminated.float() / env.step_dt

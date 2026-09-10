@@ -1,7 +1,5 @@
 # RoboNex Balancing
 
-Full execution-argument inventory: [scripts/README.md](scripts/README.md), including inherited launcher options and known ineffective flags.
-
 ## Setup
 ```bash
 # Example
@@ -49,18 +47,18 @@ robonex-balancing/
 
 ### `scripts/rsl_rl/train.py`
 
-| Option | Required | Default | Description |
-| --- | :---: | --- | --- |
-| `--task` | Yes | - | Gym task id |
-| `--num_envs` | No | cfg (`512`) | Parallel environments |
-| `--max_iterations` | No | cfg | PPO iterations |
-| `--seed` | No | - | Environment seed |
-| `--resume` | No | Off | Resume from a checkpoint |
-| `--load_run` | No | - | Run folder to resume |
-| `--checkpoint` | No | - | Checkpoint file to resume |
-| `--experiment_name` | No | - | Parsed but currently not applied; the task config still determines the log folder name |
-| `--run_name` | No | - | Run-name suffix |
-| `--logger` | No | - | `wandb`, `tensorboard`, or `neptune` |
+| Command | Option | Default | Description |
+| --- | --- | --- | --- |
+| - | `--task` | `Required` | Gym task id |
+| - | `--num_envs` | cfg (`512`) | Parallel environments |
+| - | `--max_iterations` | cfg | PPO iterations |
+| - | `--seed` | - | Environment seed |
+| - | `--resume` | Off | Resume from a checkpoint |
+| - | `--load_run` | - | Run folder to resume |
+| - | `--checkpoint` | - | Checkpoint file to resume |
+| - | `--experiment_name` | - | Parsed but currently not applied; the task config still determines the log folder name |
+| - | `--run_name` | - | Run-name suffix |
+| - | `--logger` | - | `wandb`, `tensorboard`, or `neptune` |
 
 ```bash
 # Example
@@ -78,15 +76,21 @@ python scripts/rsl_rl/train.py \
 
 ### `scripts/rsl_rl/play.py`
 
-| Option | Required | Default | Description |
-| --- | :---: | --- | --- |
-| `--task` | Yes | - | Gym task id |
-| `--num_envs` | No | - | Parallel environments |
-| `--load_run` | No | - | Run folder to load |
-| `--checkpoint` | No | - | Checkpoint file |
-| `--real-time` | No | Off | Pace playback to wall clock |
-| `--video` | No | Off | Record a video |
-| `--video_length` | No | `200` | Recorded steps |
+| Command | Option | Default | Description |
+| --- | --- | --- | --- |
+| - | `--task` | `Required` | Gym task id |
+| - | `--num_envs` | cfg | Parallel environments |
+| - | `--load_run` | - | Run folder to load |
+| - | `--checkpoint` | - | Checkpoint file |
+| - | `--real-time` | Off | Pace playback to wall clock |
+| - | `--video` | Off | Record a video |
+| - | `--video_length` | `200` | Recorded steps |
+| - | `--export-only` | Off | Export the policy and exit |
+| - | `--export-dir` | Checkpoint `exported/` | Export directory |
+| - | `--eval-steps` | `0` | Stop after this many policy steps; `0` keeps playback open |
+| - | `--eval-baseline` | Off | Evaluate without observation noise, pushes, or reset randomization |
+| - | `--eval-output` | - | Save observation, action, and robot state traces as NPZ |
+| - | `--eval-zero-joint-friction` | Off | Disable joint friction for a diagnostic comparison |
 
 ```bash
 # Example
@@ -95,13 +99,24 @@ python scripts/rsl_rl/play.py \
   --num_envs 1
 ```
 
+```bash
+# Example
+python scripts/rsl_rl/play.py \
+  --task RoboNex-Balancing-v0 \
+  --num_envs 1 \
+  --headless \
+  --export-only \
+  --checkpoint logs/rsl_rl/robonex_balancing_closed_loop/2026-09-06_04-26-18/model_1500.pt \
+  --export-dir ../robonex-deploy/policies/2026-09-06_04-26-18_iter1500
+```
+
 <br>
 
 ### `scripts/list_envs.py`
 
-| Option | Required | Default | Description |
-| --- | :---: | --- | --- |
-| `--keyword` | No | - | Filter registered tasks |
+| Command | Option | Default | Description |
+| --- | --- | --- | --- |
+| - | `--keyword` | - | Filter registered tasks |
 
 ```bash
 # Example
@@ -112,10 +127,10 @@ python scripts/list_envs.py
 
 ### `scripts/zero_agent.py`
 
-| Option | Required | Default | Description |
-| --- | :---: | --- | --- |
-| `--task` | Yes | - | Gym task id |
-| `--num_envs` | No | - | Parallel environments |
+| Command | Option | Default | Description |
+| --- | --- | --- | --- |
+| - | `--task` | `Required` | Gym task id |
+| - | `--num_envs` | - | Parallel environments |
 
 ```bash
 # Example
@@ -130,15 +145,19 @@ python scripts/zero_agent.py \
 
 ### `scripts/export_policy_manifest.py`
 
-| Option | Required | Default | Description |
-| --- | :---: | --- | --- |
-| `policy` | Yes | - | ONNX policy path |
-| `--output` | No | `<policy_dir>/policy_manifest.json` | Manifest path |
-| `--description-root` | No | Sibling checkout | `robonex-description` path |
-| `--common-root` | No | Sibling checkout | `robonex-common` path |
-| `--description-model` | No | `mujoco/basic/scene.xml` | Model path stored in the manifest |
+| Command | Option | Default | Description |
+| --- | --- | --- | --- |
+| - | `policy` | `Required` | ONNX policy path |
+| - | `--output` | `<policy_dir>/policy_manifest.json` | Manifest path |
+| - | `--description-root` | Sibling checkout | `robonex-description` path |
+| - | `--common-root` | Sibling checkout | `robonex-common` path |
+| - | `--description-model` | `mujoco/robot/scene.xml` | Model path stored in the manifest |
 
 ```bash
 # Example
 python scripts/export_policy_manifest.py /path/to/policy.onnx
 ```
+
+Schema 2 fingerprints the policy, MuJoCo XML/mesh bundle, `robonex-common` source, and
+training source. MuJoCo deployment rejects a changed model bundle or common runtime even
+when the recorded Git commit is unchanged.

@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+from math import radians
+
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
@@ -24,6 +26,8 @@ from .robot_contract import (
     ACTION_OFFSETS,
     ACTION_SCALES,
     ACTUATOR_PARAMETERS,
+    BASE_HEIGHT,
+    CLOSED_LOOP_DEFAULT_JOINT_POS,
     LEG_JOINTS,
     ROBOT_USD,
 )
@@ -64,28 +68,11 @@ class RoboNexBalancingSceneCfg(InteractiveSceneCfg):
                 solver_velocity_iteration_count=4,
             ),
         ),
+        soft_joint_pos_limit_factor=0.9,
         # Initial State (m, rad)
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(0.0, 0.0, 1.0789),
-            joint_pos={
-                "l_hip_yaw_joint": 0.0,
-                "l_hip_pitch_joint": 0.0,
-                "l_hip_roll_joint": 0.0,
-
-                "l_knee_pitch_joint": 0.0,
-
-                "l_ankle_upper_joint": 0.0,
-                "l_ankle_lower_joint": 0.0,
-
-                "r_hip_yaw_joint": 0.0,
-                "r_hip_pitch_joint": 0.0,
-                "r_hip_roll_joint": 0.0,
-
-                "r_knee_pitch_joint": 0.0,
-
-                "r_ankle_upper_joint": 0.0,
-                "r_ankle_lower_joint": 0.0,
-            },
+            pos=(0.0, 0.0, BASE_HEIGHT),
+            joint_pos=CLOSED_LOOP_DEFAULT_JOINT_POS,
         ),
         # Actuators
         actuators={
@@ -134,6 +121,7 @@ class ActionsCfg:
     """Action specifications for the MDP."""
 
     joint_pos = mdp.JointPositionActionCfg(
+        class_type=mdp.BalanceJointPositionAction,
         asset_name="robot",
         joint_names=LEG_JOINTS,
         offset=ACTION_OFFSETS,
@@ -286,58 +274,67 @@ class EventCfg:
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    alive = RewTerm(func=mdp.is_alive, weight=1.0)
-    terminating = RewTerm(func=mdp.is_terminated, weight=-5.0)
-
-    flat_orientation = RewTerm(func=mdp.flat_orientation_l2_bounded, weight=-15.0)
-    base_height = RewTerm(
-            func=mdp.base_height_l2_bounded,
-            weight=-20.0,
-            params={"target_height": 1.0789},
+    upright = RewTerm(
+        func=mdp.balance_tracking,
+        weight=0.22,
+        params={"metric": "tilt", "half_error": (radians(3.0),)},
     )
-
-    lin_vel_z = RewTerm(func=mdp.lin_vel_z_l2_bounded, weight=-2.0)
-    lin_vel_xy = RewTerm(func=mdp.base_lin_vel_xy_l2, weight=-2.0)
-    foot_slip = RewTerm(
-        func=mdp.foot_slip_l2,
-        weight=-2.0,
-        params={
-            "sensor_cfg": SceneEntityCfg(
-                "contact_forces",
-                body_names=["l_foot", "r_foot"],
-                preserve_order=True,
-            ),
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=["l_foot", "r_foot"],
-                preserve_order=True,
-            ),
-            "threshold": 1.0,
-        },
+    height = RewTerm(
+        func=mdp.balance_height,
+        weight=0.14,
+        params={"target_height": BASE_HEIGHT, "lower_tolerance": 0.02, "half_error": 0.03},
     )
-    action_rate = RewTerm(
-        func=mdp.action_rate_l2_bounded,
-        weight=-0.015
+    linear_stillness = RewTerm(
+        func=mdp.balance_tracking,
+        weight=0.14,
+        params={"metric": "linear_velocity", "half_error": (0.15, 0.15, 0.10)},
     )
-
-    joint_deviation = RewTerm(
-        func=mdp.joint_deviation_l1_bounded,
-        weight=-0.15,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS)},
+    angular_stillness = RewTerm(
+        func=mdp.balance_axis_tracking,
+        weight=0.09,
+        params={"metric": "angular_velocity", "half_error": (0.20, 0.20, 0.15)},
     )
-
-    feet_width = RewTerm(
-        func=mdp.feet_width_l2,
-        weight=-25.0,
-        params={
-            "target_width": 0.321,
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=["l_foot", "r_foot"],
-                preserve_order=True,
-            ),
-        },
+    stance = RewTerm(
+        func=mdp.balance_tracking,
+        weight=0.09,
+        params={"metric": "stance_error", "half_error": (0.03, 0.04)},
     )
+    foot_yaw = RewTerm(
+        func=mdp.balance_axis_tracking,
+        weight=0.09,
+        params={"metric": "foot_yaw", "half_error": (radians(6.0), radians(6.0))},
+    )
+    pelvis = RewTerm(
+        func=mdp.balance_tracking,
+        weight=0.08,
+        params={"metric": "pelvis_error", "half_error": (0.05, 0.02)},
+    )
+    symmetry = RewTerm(
+        func=mdp.balance_symmetry,
+        weight=0.05,
+        params={"half_error": radians(3.0)},
+    )
+    torque = RewTerm(
+        func=mdp.balance_effort,
+        weight=0.04,
+        params={"metric": "torque_ratio", "reference": 0.30},
+    )
+    target_delta = RewTerm(
+        func=mdp.balance_effort,
+        weight=0.02,
+        params={"metric": "target_delta", "reference": 0.03},
+    )
+    foot_grip = RewTerm(
+        func=mdp.balance_foot_grip,
+        weight=0.02,
+        params={"reference_velocity": 0.10, "contact_weight_fraction": 0.01},
+    )
+    joint_limit = RewTerm(
+        func=mdp.balance_joint_limit,
+        weight=0.02,
+        params={"half_error": 0.05},
+    )
+    terminating = RewTerm(func=mdp.balance_termination_cost, weight=-1.0)
 
 
 @configclass
@@ -350,6 +347,7 @@ class TerminationsCfg:
         params={"minimum_height": 0.6},
     )
     bad_joint_vel = DoneTerm(func=mdp.unstable_joint_vel, params={"limit": 100.0})
+    invalid_state = DoneTerm(func=mdp.balance_invalid_state)
 
 
 @configclass

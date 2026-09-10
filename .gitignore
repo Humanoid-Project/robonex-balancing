@@ -76,6 +76,9 @@ _build
 
 # Tests
 tests/
+!/tests/
+/tests/*
+!/tests/test_balance_rewards.py
 
 # Docker history
 .isaac-lab-docker-history

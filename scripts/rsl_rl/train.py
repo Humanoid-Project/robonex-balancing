@@ -77,6 +77,7 @@ if version.parse(installed_version) < version.parse(RSL_RL_VERSION):
 
 import logging
 import os
+import shutil
 import time
 from datetime import datetime
 
@@ -94,7 +95,8 @@ from isaaclab.envs import (
 from isaaclab.utils.dict import print_dict
 from isaaclab.utils.io import dump_yaml
 
-from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper
+from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg
+from balancing_wrapper import BalancingVecEnvWrapper
 
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path
@@ -192,7 +194,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     start_time = time.time()
 
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
+    env = BalancingVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     # create runner from rsl-rl
     if agent_cfg.class_name == "OnPolicyRunner":
@@ -212,6 +214,15 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
+    package_root = os.path.dirname(os.path.dirname(robonex_balancing.tasks.__file__))
+    shutil.copytree(
+        package_root, os.path.join(log_dir, "source_snapshot", "robonex_balancing"),
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    shutil.copytree(
+        os.path.dirname(__file__), os.path.join(log_dir, "source_snapshot", "rsl_rl"),
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
 
     # run training
     runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
