@@ -70,29 +70,29 @@ v2는 Gaussian 골격과 양수 가중치 합 1.0을 유지하고, 위 세 구�
 | **joint_limit** | 0.02 | −0.02 (`action_excess`) | soft limit(가동범위의 90%)을 넘은 관절각 초과분의 합(AND) Gaussian, 반감 0.05 rad |
 | terminating | −1.0 | −1.0 | 함수에서 `/dt` 보정하여 실패 순간 정확히 −1점 |
 
-## action 매핑 (2026-09-08, robonex-common 0.3.0)
+## action 매핑 (2026-09-10, robonex-common 0.4.0 예정)
 
 `target = 서있는 자세 + action_scale × a`. 이전에는 `target = 가동범위 중점 + (가동범위/2) × a`였다.
 
-| | 0.2.0 | 0.3.0 |
-|---|---|---|
-| `a = 0`이 명령하는 것 | 가동범위의 중점 | 서있는 자세 |
-| `\|a\| = 1`이 덮는 범위 | 관절 전체 | 관절의 7~25% |
-| 관절 한계에 닿는 `a` | 항상 1.00 | 1.78 ~ 13.73 (관절별) |
-| `clip_actions` | 3.0 | 14.0 (`RUNNER_ACTION_CLIP`) |
+| | 0.2.0 | 0.3.0 | 0.4.0 |
+|---|---|---|---|
+| `a = 0`이 명령하는 것 | 가동범위의 중점 | 서있는 자세 | 서있는 자세 |
+| `\|a\| = 1`의 각도 | 관절마다 전체 범위의 절반 | 6.9~14.3° | 1.47~6.74° |
+| 가까운 target clip에 닿는 `a` | 1.00 | 1.78~13.73 | 약 14.0 |
+| `clip_actions` | 3.0 | 14.0 | 14.0 (`RUNNER_ACTION_CLIP`) |
 
-`action_scale`은 `robonex_common.limits.ACTION_SCALE_RAD`이며 hip_yaw 0.12, hip_pitch/roll/knee 0.25,
-ankle 0.15 rad이다. hip_yaw만 작은 이유는 RS02(peak 17 N·m)가 kp=40에서 24.4°에 토크 포화하기 때문이고,
-ankle이 0.15인 이유는 가동범위가 ±35° 수준이라 0.25면 `|a|=1`이 범위의 43%를 덮어 정적 균형의 주 제어축
-해상도가 거칠어지기 때문이다.
+`action_scale`은 `robonex_common.limits.ACTION_SCALE_RAD`이며 hip_yaw 0.117718, hip_pitch 0.116809,
+hip_roll 0.031698, knee_pitch 0.078943, ankle_upper 0.025735, ankle_lower 0.028228 rad이다. 좌우는 같은
+크기다. 각 값은 기본자세에서 더 가까운 target clip까지의 각도를 14로 나눈 값보다 아주 조금 작다.
 
-`RUNNER_ACTION_CLIP = 14.0`은 임의값이 아니라 `action_limit_reach()`의 최대 크기(hip_yaw 13.73)를 올림한
-값이다. 이보다 작으면 도달 불가능한 관절 한계가 생긴다. 테스트가 이 부등식을 검사한다.
+0.3.0에서는 hip_roll이 `|a|=1.78`부터 같은 target에 고정되어 나머지 runner 범위의 약 87%가 dead zone이
+되었다. 0.4.0에서는 `|a|≤14`가 target clip 안에 있으므로 이 구간에서 action 변화가 곧 target 변화로
+이어진다. 비대칭 관절의 먼 쪽 기계적 범위는 의도적으로 사용하지 않는다.
 
 바뀌지 않은 것: `ACTION_CLIPS`(목표각 hard clip, 한계에서 0.01 rad 안쪽), 42-D observation, kp=40/kd=2,
 `sim.dt=1/250` + `decimation=5`. 이 매핑은 `robonex-walking`도 같은 함수로 공유한다.
 
-측정(2026-09-08, 30 iteration, 256 env): `ActionLimitUpper/l_hip_roll_joint = 0.0000`
+0.3.0 측정(2026-09-08, 30 iteration, 256 env): `ActionLimitUpper/l_hip_roll_joint = 0.0000`
 (0.2.0에서 같은 관절이 13%였다), `Balance/joint_limit_excess_max_deg = 0.0033`,
 `Balance/target_delta_rms_rad = 0.0908`. 학습 성공의 증거는 아니고 매핑이 의도대로 동작한다는 확인이다.
 

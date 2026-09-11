@@ -26,7 +26,7 @@ rewards = importlib.import_module("balance_test_task.mdp.rewards")
 terminations = importlib.import_module("balance_test_task.mdp.terminations")
 
 from robonex_common.joints import DEFAULT_JOINT_POS, JOINT_LIMITS_BY_NAME
-from robonex_common.limits import ACTION_SCALE_RAD, RUNNER_ACTION_CLIP, action_limit_reach
+from robonex_common.limits import RUNNER_ACTION_CLIP, action_limit_reach
 from robonex_common.motors import DEFAULT_VELOCITY_LIMIT_CURRENT
 
 SOFT_JOINT_POS_LIMIT_FACTOR = 0.9
@@ -253,15 +253,15 @@ class BalanceRewardTests(unittest.TestCase):
 
     def test_unclipped_target_delta_prevents_limit_dead_zone(self):
         action = make_action()
-        action.process_actions(torch.full((3, 12), 20.))
-        action.process_actions(torch.full((3, 12), 21.))
+        reach = action_limit_reach(0.01)
+        first = torch.tensor([reach[name][1] + 1. for name in action._joint_names]).expand(3, -1)
+        action.process_actions(first)
+        action.process_actions(first + 1.)
         torch.testing.assert_close(action.processed_actions - action.previous_targets, torch.zeros(3, 12))
         torch.testing.assert_close(
             action.unclipped_targets - action.previous_unclipped_targets,
             torch.tensor([contract.ACTION_SCALES[name] for name in action._joint_names]).expand(3, -1),
         )
-        reach = action_limit_reach(0.01)
-        self.assertTrue(all(21. > reach[name][1] for name in action._joint_names))
 
     def test_nonfinite_action_holds_previous_target(self):
         action = make_action()
@@ -280,15 +280,15 @@ class BalanceRewardTests(unittest.TestCase):
         for name in action._joint_names:
             self.assertEqual(contract.ACTION_OFFSETS[name], DEFAULT_JOINT_POS[name])
 
-    def test_runner_clip_reaches_every_mechanical_limit(self):
+    def test_runner_clip_does_not_enter_the_target_clip_dead_zone(self):
         reach = action_limit_reach(0.01)
-        worst = max(max(abs(low), abs(high)) for low, high in reach.values())
-        self.assertLessEqual(worst, RUNNER_ACTION_CLIP)
+        self.assertTrue(all(min(abs(low), abs(high)) >= RUNNER_ACTION_CLIP
+                            for low, high in reach.values()))
         action = make_action()
         for sign in (-1., 1.):
             action.process_actions(torch.full((3, 12), sign * RUNNER_ACTION_CLIP))
-            index = 0 if sign < 0. else 1
-            expected = [contract.ACTION_CLIPS[name][index] for name in action._joint_names]
+            expected = [contract.ACTION_OFFSETS[name] + sign * RUNNER_ACTION_CLIP
+                        * contract.ACTION_SCALES[name] for name in action._joint_names]
             torch.testing.assert_close(action.processed_actions, torch.tensor(expected).expand(3, -1))
 
     def test_action_fence_log_uses_the_contract_reach_not_unit_actions(self):
@@ -301,7 +301,7 @@ class BalanceRewardTests(unittest.TestCase):
                                        torch.tensor(reach[name]), atol=1.e-5, rtol=0.)
         self.assertGreater(float(state.action_fence[0, term._joint_names.index("l_hip_yaw_joint"), 1]), 13.)
         near = min(reach[name][1] for name in term._joint_names)
-        self.assertGreater(near, 1.7)
+        self.assertGreaterEqual(near, RUNNER_ACTION_CLIP)
         logged = make_env()
         logged.common_step_counter = 11
         term = logged.action_manager.get_term("joint_pos")
@@ -311,12 +311,12 @@ class BalanceRewardTests(unittest.TestCase):
             expected = 1. if 5. > reach[name][1] else 0.
             self.assertEqual(float(log[f"ActionLimitUpper/{name}"]), expected, name)
         self.assertEqual(float(log["ActionLimitUpper/l_hip_yaw_joint"]), 0.)
-        self.assertEqual(float(log["ActionLimitUpper/l_hip_roll_joint"]), 1.)
+        self.assertEqual(float(log["ActionLimitUpper/l_hip_roll_joint"]), 0.)
 
-    def test_hip_roll_near_fence_moved_away_from_one_action_unit(self):
+    def test_hip_roll_near_fence_matches_the_runner_clip(self):
         reach = action_limit_reach(0.01)
-        self.assertAlmostEqual(reach["l_hip_roll_joint"][1], 1.7752, places=3)
-        self.assertAlmostEqual(reach["r_hip_roll_joint"][0], -1.7752, places=3)
+        self.assertAlmostEqual(reach["l_hip_roll_joint"][1], RUNNER_ACTION_CLIP, places=3)
+        self.assertAlmostEqual(reach["r_hip_roll_joint"][0], -RUNNER_ACTION_CLIP, places=3)
 
     def test_joint_limit_reward_halves_one_half_error_past_the_soft_limit(self):
         env = make_env()
@@ -422,7 +422,6 @@ class BalanceRewardTests(unittest.TestCase):
         slowest = min(DEFAULT_VELOCITY_LIMIT_CURRENT.values())
         self.assertGreater(params["reference"], 0.)
         self.assertLessEqual(params["reference"] * policy_hz, slowest)
-        self.assertLess(params["reference"], min(ACTION_SCALE_RAD.values()))
 
     def test_env_cfg_declares_the_soft_joint_limit_band_used_by_the_reward(self):
         tree = ast.parse((TASK / "robonex_balancing_env_cfg.py").read_text())
