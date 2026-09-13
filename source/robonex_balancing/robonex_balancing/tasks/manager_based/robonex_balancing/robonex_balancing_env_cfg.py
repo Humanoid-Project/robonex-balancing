@@ -181,17 +181,6 @@ class ObservationsCfg:
 class EventCfg:
     """Configuration for events."""
 
-    # Randomization Kp/Kd
-    randomize_actuator_gains = EventTerm(
-        func=mdp.randomize_actuator_gains,
-        mode="reset",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-            "stiffness_distribution_params": (0.9, 1.1),
-            "damping_distribution_params": (0.8, 1.2),
-            "operation": "scale",
-        },
-    )
 
     # Initialization base_link pose/velocity
     reset_base = EventTerm(

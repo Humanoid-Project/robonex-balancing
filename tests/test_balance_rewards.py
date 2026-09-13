@@ -280,16 +280,23 @@ class BalanceRewardTests(unittest.TestCase):
         for name in action._joint_names:
             self.assertEqual(contract.ACTION_OFFSETS[name], DEFAULT_JOINT_POS[name])
 
-    def test_runner_clip_does_not_enter_the_target_clip_dead_zone(self):
+    def test_runner_clip_leaves_headroom_over_every_target_clip_fence(self):
         reach = action_limit_reach(0.01)
-        self.assertTrue(all(min(abs(low), abs(high)) >= RUNNER_ACTION_CLIP
+        self.assertTrue(all(max(abs(low), abs(high)) <= RUNNER_ACTION_CLIP
                             for low, high in reach.values()))
+        self.assertLessEqual(max(min(abs(low), abs(high)) for low, high in reach.values()),
+                             0.5 * RUNNER_ACTION_CLIP)
         action = make_action()
+        # at the runner clip every joint is pinned to its fence, never past it
         for sign in (-1., 1.):
             action.process_actions(torch.full((3, 12), sign * RUNNER_ACTION_CLIP))
-            expected = [contract.ACTION_OFFSETS[name] + sign * RUNNER_ACTION_CLIP
-                        * contract.ACTION_SCALES[name] for name in action._joint_names]
+            index = 0 if sign < 0 else 1
+            expected = [contract.ACTION_CLIPS[name][index] for name in action._joint_names]
             torch.testing.assert_close(action.processed_actions, torch.tensor(expected).expand(3, -1))
+        # inside the reach the affine map is untouched by the fence
+        action.process_actions(torch.zeros(3, 12))
+        expected = [contract.ACTION_OFFSETS[name] for name in action._joint_names]
+        torch.testing.assert_close(action.processed_actions, torch.tensor(expected).expand(3, -1))
 
     def test_action_fence_log_uses_the_contract_reach_not_unit_actions(self):
         env = make_env()
@@ -299,9 +306,8 @@ class BalanceRewardTests(unittest.TestCase):
         for index, name in enumerate(term._joint_names):
             torch.testing.assert_close(state.action_fence[0, index],
                                        torch.tensor(reach[name]), atol=1.e-5, rtol=0.)
-        self.assertGreater(float(state.action_fence[0, term._joint_names.index("l_hip_yaw_joint"), 1]), 13.)
-        near = min(reach[name][1] for name in term._joint_names)
-        self.assertGreaterEqual(near, RUNNER_ACTION_CLIP)
+        far = max(max(abs(low), abs(high)) for low, high in reach.values())
+        self.assertLessEqual(far, RUNNER_ACTION_CLIP)
         logged = make_env()
         logged.common_step_counter = 11
         term = logged.action_manager.get_term("joint_pos")
@@ -311,12 +317,18 @@ class BalanceRewardTests(unittest.TestCase):
             expected = 1. if 5. > reach[name][1] else 0.
             self.assertEqual(float(log[f"ActionLimitUpper/{name}"]), expected, name)
         self.assertEqual(float(log["ActionLimitUpper/l_hip_yaw_joint"]), 0.)
-        self.assertEqual(float(log["ActionLimitUpper/l_hip_roll_joint"]), 0.)
+        self.assertEqual(float(log["ActionLimitUpper/l_hip_roll_joint"]), 1.)
 
-    def test_hip_roll_near_fence_matches_the_runner_clip(self):
-        reach = action_limit_reach(0.01)
-        self.assertAlmostEqual(reach["l_hip_roll_joint"][1], RUNNER_ACTION_CLIP, places=3)
-        self.assertAlmostEqual(reach["r_hip_roll_joint"][0], -RUNNER_ACTION_CLIP, places=3)
+    def test_target_clip_fence_stays_inside_the_hard_joint_limits(self):
+        from robonex_common.joints import JOINT_LIMITS_BY_NAME
+        from robonex_common.limits import action_normalization
+        offsets, _, clips = action_normalization(0.01)
+        for name, (low, high) in clips.items():
+            lower, upper = JOINT_LIMITS_BY_NAME[name]
+            self.assertLess(lower, low)
+            self.assertLess(high, upper)
+            self.assertLess(low, offsets[name])
+            self.assertLess(offsets[name], high)
 
     def test_joint_limit_reward_halves_one_half_error_past_the_soft_limit(self):
         env = make_env()
