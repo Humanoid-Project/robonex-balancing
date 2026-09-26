@@ -39,7 +39,7 @@ robonex-balancing/
 
 | Task | USD |
 | --- | --- |
-| `RoboNex-Balancing-v0` | `robonex-description/isaac/closed_loop_mesh/robonex_closed_loop_mesh.usd` |
+| `RoboNex-Balancing-v0` | `robonex-description/ver1/isaac/closed_loop_mesh/robonex_closed_loop_mesh.usd` |
 
 <br>
 
@@ -151,7 +151,7 @@ python scripts/zero_agent.py \
 | - | `--output` | `<policy_dir>/policy_manifest.json` | Manifest path |
 | - | `--description-root` | Sibling checkout | `robonex-description` path |
 | - | `--common-root` | Sibling checkout | `robonex-common` path |
-| - | `--description-model` | `mujoco/robot/scene.xml` | Model path stored in the manifest |
+| - | `--description-model` | `ver1/mujoco/robot/scene.xml` | Model path stored in the manifest |
 
 ```bash
 # Example

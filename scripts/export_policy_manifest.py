@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--description-root", type=Path)
     parser.add_argument("--common-root", type=Path)
-    parser.add_argument("--description-model", default="mujoco/robot/scene.xml")
+    parser.add_argument("--description-model", default="ver1/mujoco/robot/scene.xml")
     args = parser.parse_args()
 
     policy = args.policy.expanduser().resolve()

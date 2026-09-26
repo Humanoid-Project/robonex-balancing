@@ -6,7 +6,7 @@ from robonex_common.paths import DESCRIPTION_REPO_NAMES, repo_file
 
 ROBOT_USD = repo_file(
     DESCRIPTION_REPO_NAMES,
-    "isaac/closed_loop_mesh/robonex_closed_loop_mesh.usd",
+    "ver1/isaac/closed_loop_mesh/robonex_closed_loop_mesh.usd",
     env_var="ROBONEX_DESCRIPTION_ROOT",
     anchors=(__file__,),
 )
