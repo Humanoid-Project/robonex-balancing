@@ -161,3 +161,9 @@ python scripts/export_policy_manifest.py /path/to/policy.onnx
 Schema 2 fingerprints the policy, MuJoCo XML/mesh bundle, `robonex-common` source, and
 training source. MuJoCo deployment rejects a changed model bundle or common runtime even
 when the recorded Git commit is unchanged.
+
+<br>
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE). Copyright 2026 RoboNex. See [NOTICE](NOTICE).
